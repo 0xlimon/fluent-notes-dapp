@@ -421,27 +421,26 @@ const NoteEditor = ({ contractAddress, provider, account, noteId, onSaved, onCan
           
           {/* Action buttons */}
           <div className="flex justify-end space-x-4 mt-8">
-            <button
+            
+              {readOnly ? (
+                <>
+                  
+                </>
+              ) : (
+                <button
               type="button"
               onClick={handleCancel}
               className="inline-flex items-center px-5 py-2.5 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
             >
-              {readOnly ? (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-                  </svg>
-                  Back
-                </>
-              ) : (
                 <>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                   Cancel
                 </>
+                </button>
               )}
-            </button>
+
             
             {!readOnly && (
               <button

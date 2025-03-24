@@ -12,16 +12,74 @@ const ConnectWallet = ({ onConnected }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState('');
   const [manuallyDisconnected, setManuallyDisconnected] = useState(false);
-  // Add a flag to prevent auto-connection on initial page load
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   // Control dropdown menu visibility
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  // Key for localStorage
+  const STORAGE_KEY = 'blockchain_notes_wallet_connected';
 
+  // Check for saved connection on component mount
   useEffect(() => {
-    // Set the initial load flag to true - this prevents auto-connection on first load
-    setInitialLoadComplete(true);
+    const checkSavedConnection = async () => {
+      try {
+        // Check if user manually disconnected previously
+        const wasManuallyDisconnected = localStorage.getItem('blockchain_notes_wallet_disconnected') === 'true';
+        if (wasManuallyDisconnected) {
+          setManuallyDisconnected(true);
+          return;
+        }
+        
+        // Check if there's a saved connection
+        const savedWallet = localStorage.getItem(STORAGE_KEY);
+        if (savedWallet && window.ethereum && !account && !manuallyDisconnected) {
+          console.log("Found saved wallet connection, attempting to reconnect...");
+          
+          setIsConnecting(true);
+          setError('');
+          
+          try {
+            // Get current accounts from wallet
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const accounts = await provider.send("eth_accounts", []);
+            
+            // If connected account matches saved account, reconnect
+            if (accounts.length > 0 && accounts[0].toLowerCase() === savedWallet.toLowerCase()) {
+              const address = accounts[0];
+              
+              // Skip signature on auto-reconnect to improve UX
+              setAccount(address);
+              
+              if (onConnected) {
+                onConnected(address, provider);
+              }
+              
+              console.log("Auto-reconnected to wallet:", address);
+            } else if (accounts.length > 0) {
+              // Connected account is different from saved one
+              console.log("Connected wallet differs from saved wallet");
+              localStorage.removeItem(STORAGE_KEY);
+            } else {
+              // No accounts available
+              console.log("No accounts available in wallet");
+              localStorage.removeItem(STORAGE_KEY);
+            }
+          } catch (err) {
+            console.error("Error during auto-reconnect:", err);
+            localStorage.removeItem(STORAGE_KEY);
+          } finally {
+            setIsConnecting(false);
+          }
+        }
+      } catch (err) {
+        console.error("Error checking saved connection:", err);
+      }
+    };
     
-    // Listen for account changes, but don't reconnect if manually disconnected
+    checkSavedConnection();
+  }, [account, manuallyDisconnected, onConnected]);
+
+  // Listen for account changes
+  useEffect(() => {
     if (window.ethereum && !manuallyDisconnected) {
       const handleAccountsChanged = async (accounts) => {
         // Clear current account first
@@ -41,6 +99,10 @@ const ConnectWallet = ({ onConnected }) => {
             
             if (signatureVerified) {
               setAccount(address);
+              // Save the connected account
+              localStorage.setItem(STORAGE_KEY, address);
+              localStorage.removeItem('blockchain_notes_wallet_disconnected');
+              
               if (onConnected) {
                 onConnected(address, provider);
               }
@@ -61,7 +123,7 @@ const ConnectWallet = ({ onConnected }) => {
         window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
       };
     }
-  }, [onConnected, manuallyDisconnected]);
+  }, [onConnected, manuallyDisconnected, account]);
 
   /**
    * Switch to Fluent network
@@ -168,6 +230,10 @@ const ConnectWallet = ({ onConnected }) => {
         
         if (signatureVerified) {
           setAccount(address);
+          // Save connected wallet in localStorage for persistence
+          localStorage.setItem(STORAGE_KEY, address);
+          localStorage.removeItem('blockchain_notes_wallet_disconnected');
+          
           if (onConnected) {
             onConnected(address, provider);
           }
@@ -191,6 +257,11 @@ const ConnectWallet = ({ onConnected }) => {
     setAccount('');
     // Set the manually disconnected flag to prevent auto-reconnection
     setManuallyDisconnected(true);
+    
+    // Update localStorage to remember manual disconnection
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.setItem('blockchain_notes_wallet_disconnected', 'true');
+    
     if (onConnected) {
       onConnected('', null);
     }
@@ -212,7 +283,7 @@ const ConnectWallet = ({ onConnected }) => {
           ) : (
             <>
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
               </svg>
               Connect Wallet
             </>
@@ -260,7 +331,7 @@ const ConnectWallet = ({ onConnected }) => {
                     title="Copy address"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                     </svg>
                   </button>
                 </div>

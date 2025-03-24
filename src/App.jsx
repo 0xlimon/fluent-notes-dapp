@@ -452,12 +452,13 @@ const App = () => {
   const [account, setAccount] = useState('');
   const [provider, setProvider] = useState(null);
   
-  // State for notes interaction and registration status
+  // State for notes interaction and registration status, with mobile view toggling
   const [noteState, setNoteState] = useState({
     selectedNoteId: null,
     isEditing: false,
     editorKey: 'initial', // Stable key that doesn't change on every render
-    refreshTrigger: Date.now() // Used to trigger notes list refresh
+    refreshTrigger: Date.now(), // Used to trigger notes list refresh
+    showListOnMobile: true // Controls whether to show list or editor/viewer on mobile
   });
   
   // Add registration tracking state
@@ -495,7 +496,9 @@ const App = () => {
     setNoteState({
       selectedNoteId: null,
       isEditing: false,
-      editorKey: 'wallet-change'
+      editorKey: 'wallet-change',
+      showListOnMobile: true, // When wallet changes, show list on mobile
+      refreshTrigger: Date.now()
     });
     
     // No registration check - contract handles auto-registration when needed
@@ -510,9 +513,11 @@ const App = () => {
     console.log(`Selected note ID: ${noteId}`);
     // Batch state update to avoid race conditions
     setNoteState(prev => ({
+      ...prev,
       selectedNoteId: noteId,
       isEditing: false,
-      editorKey: `view-${noteId}`
+      editorKey: `view-${noteId}`,
+      showListOnMobile: false // On mobile, switch to the detail view
     }));
   }, []);
   
@@ -523,11 +528,13 @@ const App = () => {
     // No registration check - assume all connected users can create notes
     console.log("Creating new note");
     // Batch state update to avoid race conditions and flicker
-    setNoteState({
+    setNoteState(prev => ({
+      ...prev,
       selectedNoteId: null,
       isEditing: true,
-      editorKey: `create-${Date.now().toString(36)}` // Unique but stable key
-    });
+      editorKey: `create-${Date.now().toString(36)}`, // Unique but stable key
+      showListOnMobile: false // On mobile, switch to the editor view
+    }));
   }, []);
   
   /**
@@ -541,7 +548,8 @@ const App = () => {
       setNoteState(prev => ({
         ...prev,
         isEditing: true,
-        editorKey: `edit-${selectedNoteId}-${Date.now().toString(36)}`
+        editorKey: `edit-${selectedNoteId}-${Date.now().toString(36)}`,
+        showListOnMobile: false // On mobile, switch to the editor view
       }));
     }
   }, [noteState]);
@@ -577,7 +585,8 @@ const App = () => {
         console.log("Second refresh attempt (6s total delay)");
         setNoteState(prev => ({
           ...prev, 
-          refreshTrigger: Date.now()
+          refreshTrigger: Date.now(),
+          showListOnMobile: true // After saving, show the list on mobile
         }));
       }, 4000);
     }, 2000);
@@ -601,7 +610,8 @@ const App = () => {
         ...prev,
         isEditing: false,
         // Keep selectedNoteId as null to show the welcome screen
-        editorKey: `canceled-${Date.now().toString(36)}`
+        editorKey: `canceled-${Date.now().toString(36)}`,
+        showListOnMobile: true // On mobile, return to the list view
       }));
     } 
     // When canceling an edit of an existing note, 
@@ -622,19 +632,30 @@ const App = () => {
         ...prev,
         isEditing: false,
         // Keep selectedNoteId as null to show the welcome screen
-        editorKey: `welcome-${Date.now().toString(36)}`
+        editorKey: `welcome-${Date.now().toString(36)}`,
+        showListOnMobile: true // On mobile, return to the list view
       }));
     }
   }, [noteState]);
   
+  /**
+   * Toggle between list and editor/viewer on mobile
+   */
+  const toggleMobileView = useCallback(() => {
+    console.log("Toggling mobile view");
+    setNoteState(prev => ({
+      ...prev,
+      showListOnMobile: !prev.showListOnMobile
+    }));
+  }, []);
   
   /**
    * Render the main content based on application state
    */
   const renderMainContent = () => {
-    const { selectedNoteId, isEditing, editorKey } = noteState;
+    const { selectedNoteId, isEditing, editorKey, showListOnMobile } = noteState;
     
-    console.log("Rendering main content:", { account, isEditing, selectedNoteId });
+    console.log("Rendering main content:", { account, isEditing, selectedNoteId, showListOnMobile });
     
     if (!account) {
       console.log("No account connected");
@@ -643,7 +664,7 @@ const App = () => {
           <div className="bg-white rounded-xl shadow-lg p-8 text-center border border-gray-200">
             <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full mx-auto mb-6 flex items-center justify-center shadow-md">
               <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m-6-8h6M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"></path>
               </svg>
             </div>
             <h2 className="text-3xl font-bold mb-4 text-gray-800 leading-tight">
@@ -657,7 +678,7 @@ const App = () => {
               <div className="bg-blue-50 rounded-lg p-6 text-center border border-blue-100 shadow-sm transform transition hover:scale-105">
                 <div className="w-12 h-12 bg-blue-100 rounded-full mx-auto mb-4 flex items-center justify-center">
                   <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                   </svg>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-800 mb-2">Private</h3>
@@ -689,28 +710,44 @@ const App = () => {
       );
     }
     
-    
     return (
       <div className="flex flex-col md:flex-row h-[calc(100vh-6rem)] gap-4 sm:gap-6 mt-4 sm:mt-6 animate-fade-in">
-          {/* Sidebar with notes list */}
-          <div className="w-full md:w-2/5 lg:w-1/3 xl:w-1/4 md:h-full overflow-hidden transform transition-all">
-            <NotesList
-              contractAddress={CONTRACT_ADDRESSES.SECURE_NOTES_RUST}
-              provider={provider}
-              account={account}
-              onSelectNote={handleSelectNote}
-              onCreateNote={handleCreateNote}
-              isRegistered={true} // Always consider connected wallets as registered
-              refreshTrigger={noteState.refreshTrigger} // Pass refresh trigger to force refresh
-            />
-          </div>
+        {/* Sidebar with notes list - Visible on mobile only when showListOnMobile is true */}
+        <div className={`${showListOnMobile ? 'block' : 'hidden'} md:block w-full md:w-2/5 lg:w-1/3 xl:w-1/4 md:h-full overflow-hidden transform transition-all`}>
+          <NotesList
+            contractAddress={CONTRACT_ADDRESSES.SECURE_NOTES_RUST}
+            provider={provider}
+            account={account}
+            onSelectNote={handleSelectNote}
+            onCreateNote={handleCreateNote}
+            isRegistered={true} // Always consider connected wallets as registered
+            refreshTrigger={noteState.refreshTrigger} // Pass refresh trigger to force refresh
+          />
+        </div>
         
-        {/* Main content area */}
-        <div className="w-full lg:w-2/3 xl:w-3/4 lg:h-full transform transition-all duration-300">
-          <div className="bg-white rounded-lg shadow-lg border border-gray-200 h-full overflow-hidden">
+        {/* Main content area - Visible on mobile only when showListOnMobile is false */}
+        <div className={`${!showListOnMobile ? 'block' : 'hidden'} md:block w-full lg:w-2/3 xl:w-3/4 lg:h-full transform transition-all duration-300`}>
+          <div className="bg-white rounded-lg shadow-lg border border-gray-200 h-full overflow-hidden relative">
+            {/* Mobile-only back button to return to list */}
+            {!showListOnMobile && (
+              <div className="md:hidden w-full bg-white border-b border-gray-200 px-4 py-3 shadow-sm">
+                <button 
+                  onClick={toggleMobileView}
+                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
+                  </svg>
+                  Back to List
+                </button>
+              </div>
+            )}
+            
             {isEditing ? (
               <div className="h-full overflow-auto">
-                <div className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 p-5">
+                <div className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 p-5 flex items-center">
+                  {/* Mobile back button spacer for editor view */}
+                  <div className="md:hidden w-6 mr-2"></div>
                   <h2 className="text-xl font-bold text-gray-800 flex items-center">
                     {selectedNoteId === null ? (
                       <>
@@ -744,13 +781,18 @@ const App = () => {
             ) : selectedNoteId !== null ? (
               <div className="h-full overflow-auto">
                 <div className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 p-5 flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                    <svg className="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                    </svg>
-                    View Note
-                  </h2>
+                  {/* View mode header with title */}
+                  <div className="flex items-center">
+                    {/* Spacer for mobile back button */}
+                    <div className="md:hidden w-6 mr-2"></div>
+                    <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                      <svg className="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                      </svg>
+                      View Note
+                    </h2>
+                  </div>
                   <button 
                     className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
                     onClick={handleEditNote}
@@ -785,15 +827,29 @@ const App = () => {
                   <p className="text-gray-600 mb-8">
                     Select a note from the list or create a new note to get started
                   </p>
-                  <button 
-                    className="inline-flex items-center px-5 py-3 border border-transparent text-base font-medium rounded-lg shadow-md text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 transform transition-all duration-200 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    onClick={handleCreateNote}
-                  >
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                    </svg>
-                    Create New Note
-                  </button>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                    {/* On mobile, show "View Notes List" button when on empty detail view */}
+                    {!showListOnMobile && (
+                      <button 
+                        onClick={toggleMobileView}
+                        className="md:hidden mb-3 sm:mb-0 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                        View Notes List
+                      </button>
+                    )}
+                    <button 
+                      className="inline-flex items-center px-5 py-3 border border-transparent text-base font-medium rounded-lg shadow-md text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 transform transition-all duration-200 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      onClick={handleCreateNote}
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                      </svg>
+                      Create New Note
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

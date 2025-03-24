@@ -26,7 +26,7 @@ const Header = ({ account, onConnect }) => {
                   strokeLinecap="round" 
                   strokeLinejoin="round" 
                   strokeWidth="2" 
-                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                  d="M9 12h6m-6 4h6m-6-8h6M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"
                 />
               </svg>
             </div>
@@ -35,7 +35,6 @@ const Header = ({ account, onConnect }) => {
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-800 leading-tight">
                 Blockchain Notes
                 </h1>
-                <span className="ml-1 sm:ml-2 bg-blue-100 text-blue-700 text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded-full">Beta</span>
               </div>
               <p className="text-xs sm:text-sm text-gray-500 mt-0.5 flex items-center">
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>
